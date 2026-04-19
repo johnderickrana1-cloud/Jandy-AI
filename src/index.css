@@ -105,4 +105,11 @@
     width: 10px; height: 10px;
     background: #00f3ff;
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

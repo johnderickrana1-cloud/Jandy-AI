@@ -19,8 +19,11 @@ import {
   History,
   Plus,
   Trash2,
-  ChevronLeft
+  ChevronLeft,
+  ArrowDown
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -57,6 +60,7 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,11 +122,26 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
+  const scrollToBottom = (force = false) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      
+      if (force || isAtBottom) {
+        scrollRef.current.scrollTop = scrollHeight;
+      }
     }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages, isTyping]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShowScrollButton(!isAtBottom && scrollHeight > clientHeight);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -278,7 +297,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background selection:bg-neon-blue selection:text-black overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-background selection:bg-neon-blue selection:text-black overflow-hidden font-sans">
       {/* Header */}
       <header className="h-16 md:h-20 flex items-center justify-between px-4 md:px-10 bg-black/80 border-b-2 border-neon-blue glow-blue shrink-0 z-50">
         <div className="flex items-center gap-4">
@@ -369,43 +388,80 @@ export default function App() {
         )}
 
         {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col min-w-0 relative">
-          <ScrollArea className="flex-1 p-4 md:p-10" ref={scrollRef}>
-            <div className="max-w-3xl mx-auto flex flex-col gap-6">
+        <main className="flex-1 flex flex-col min-w-0 relative h-full">
+          <ScrollArea 
+            className="flex-1" 
+            ref={scrollRef}
+            onScroll={handleScroll}
+          >
+            <div className="max-w-3xl mx-auto flex flex-col gap-6 p-4 md:p-8 pb-20">
               <AnimatePresence initial={false}>
+                {messages.length === 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-6"
+                  >
+                    <div className="w-20 h-20 bg-neon-blue/20 rounded-full flex items-center justify-center glow-blue">
+                      <Zap className="w-10 h-10 text-neon-blue" />
+                    </div>
+                    <div className="space-y-2">
+                      <h2 className="text-2xl font-black tracking-tighter text-neon-blue">READY FOR INPUT</h2>
+                      <p className="text-muted-foreground max-w-sm">I am Jandy AI. Optimized for speed, accuracy, and Filipino language processing.</p>
+                    </div>
+                  </motion.div>
+                )}
                 {messages.map((msg) => (
                   <motion.div
                     key={msg.id}
-                    initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     className={cn(
-                      "max-w-[90%] md:max-w-[75%] p-4 md:p-5 relative text-sm md:text-[14px] leading-[1.5]",
+                      "group max-w-[92%] md:max-w-[85%] p-4 md:p-6 relative text-sm md:text-[15px] leading-relaxed transition-all",
                       msg.role === 'user' 
-                        ? "self-end bg-neon-red/10 border-r-3 border-neon-red text-right" 
-                        : "self-start bg-neon-blue/10 border-l-3 border-neon-blue"
+                        ? "self-end bg-neon-red/5 border-r-4 border-neon-red shadow-[5px_0_15px_-5px_rgba(255,0,60,0.2)]" 
+                        : "self-start bg-neon-blue/5 border-l-4 border-neon-blue shadow-[-5px_0_15px_-5px_rgba(0,243,255,0.2)]"
                     )}
                   >
-                    <span className={cn(
-                      "font-mono text-[9px] mb-1 block",
-                      msg.role === 'user' ? "text-neon-red" : "text-neon-blue"
+                    <div className={cn(
+                      "flex items-center gap-2 font-mono text-[10px] mb-3 uppercase tracking-widest font-bold",
+                      msg.role === 'user' ? "text-neon-red justify-end" : "text-neon-blue"
                     )}>
-                      {msg.role === 'user' ? 'USER_INPUT' : 'JANDY_SYSTEM'}
-                    </span>
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                      {msg.role === 'user' ? (
+                        <>
+                          <span>USER_ENTITY_01</span>
+                          <Terminal className="w-3 h-3" />
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="w-3 h-3" />
+                          <span>JANDY_CORE_AI</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    <div className={cn(
+                      "prose prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-neon-blue/20 prose-code:text-neon-blue prose-code:before:content-none prose-code:after:content-none",
+                      msg.role === 'user' ? "text-right prose-p:text-right" : "text-left"
+                    )}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
                     
                     {msg.files && (
                       <div className={cn(
-                        "mt-3 flex flex-wrap gap-2",
+                        "mt-4 flex flex-wrap gap-2",
                         msg.role === 'user' ? "justify-end" : "justify-start"
                       )}>
                         {msg.files.map((file, i) => (
-                          <div key={i} className="bg-black/40 p-2 border border-white/10 flex items-center gap-2 text-[10px]">
+                          <div key={i} className="bg-black/60 p-2 border border-neon-blue/20 flex items-center gap-2 text-[10px] animate-in fade-in zoom-in duration-300">
                             {file.preview ? (
-                              <img src={file.preview} alt="preview" className="w-6 h-6 object-cover" />
+                              <img src={file.preview} alt="preview" className="w-8 h-8 object-cover rounded-sm" />
                             ) : (
-                              <FileText className="w-3 h-3 text-neon-blue" />
+                              <FileText className="w-4 h-4 text-neon-blue" />
                             )}
-                            <span className="truncate max-w-[80px]">{file.name}</span>
+                            <span className="truncate max-w-[120px] font-mono">{file.name}</span>
                           </div>
                         ))}
                       </div>
@@ -415,16 +471,35 @@ export default function App() {
               </AnimatePresence>
               
               {isTyping && (
-                <div className="flex items-center gap-2 text-neon-blue/60 font-mono text-[10px] uppercase tracking-widest">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Processing Data...</span>
+                <div className="flex items-center gap-3 text-neon-blue/80 font-mono text-[11px] uppercase tracking-[0.2em] font-bold p-4 animate-pulse">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-neon-blue rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-neon-blue rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-neon-blue rounded-full animate-bounce"></div>
+                  </div>
+                  <span>Syncing Neural Pathways...</span>
                 </div>
               )}
             </div>
           </ScrollArea>
 
+          <AnimatePresence>
+            {showScrollButton && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={() => scrollToBottom(true)}
+                className="absolute bottom-40 right-4 md:right-10 z-50 p-3 bg-neon-blue text-black rounded-full shadow-glow transition-transform hover:scale-110 active:scale-95 glow-blue"
+              >
+                <ArrowDown className="w-5 h-5" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           {/* Footer / Input Area */}
-          <footer className="p-4 md:px-10 md:pb-8 flex flex-col gap-4 max-w-4xl mx-auto w-full">
+          <footer className="p-4 md:px-10 pb-4 md:pb-10 z-40 bg-background/80 backdrop-blur-md border-t border-neon-blue/10">
+            <div className="max-w-4xl mx-auto w-full flex flex-col gap-3">
             {/* File Previews Overlay */}
             {attachedFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 p-3 bg-black/80 border border-border-blue">
@@ -448,9 +523,9 @@ export default function App() {
             )}
 
             <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex-1 relative min-h-[50px] border border-border-blue bg-black/50 flex items-center px-4 input-accent">
-                <div className="hidden sm:block absolute -top-6 left-0 text-[10px] text-[#00ff66] font-mono">
-                  ● UNDETECTABLE MODE: 100% STEALTH
+              <div className="flex-1 relative min-h-[50px] border border-border-blue bg-black/60 flex items-center px-4">
+                <div className="hidden sm:block absolute -top-5 left-2 text-[9px] text-neon-blue/60 font-mono tracking-tighter uppercase">
+                  Secure Neural Link Active
                 </div>
                 <input
                   type="file"
@@ -489,7 +564,8 @@ export default function App() {
                 <Send className="w-5 h-5" />
               </button>
             </div>
-          </footer>
+          </div>
+        </footer>
         </main>
       </div>
     </div>
